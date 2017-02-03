@@ -1,0 +1,50 @@
+#main-page-heading{
+    height:50%;
+    min-height:250px;
+    margin-top:100px;
+}
+.navbar-brand>img{
+    display:inline !important;
+    margin-top:-15px;
+}
+#main{
+    height:50%;
+    min-height:500px;
+}
+.footer {
+  position: absolute;
+  bottom: 0;
+  /* Set the fixed height of the footer here */
+  height: 60px;
+  background-color: #f5f5f5;
+}
+.footer p{
+    margin-top:15px!important;
+}
+.row.vdivide [class*='col-']:after{
+  background: #000;
+  width: 1px;
+  content: "";
+  display:block;
+  position: absolute;
+  top:0;
+  bottom: 0;
+  right: 0;
+  min-height: 100%;
+}
+.row{
+    margin-top:5px;
+}
+#cover {
+    background: url("/static/images/ajax-loader.gif") no-repeat scroll center center #FFF;
+    position: absolute;
+    height: 100%;
+    width: 100%;
+}
+.navbar-nav>li>a{
+    color:blue!important;
+}
+
+th {
+    text-align: center; /* Or right or left */
+}
