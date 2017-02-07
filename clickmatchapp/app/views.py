@@ -11,6 +11,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 
 from googleapiclient import discovery
+from googleapiclient.errors import HttpError
 from oauth2client.client import AccessTokenCredentials
 
 from .models import Index
@@ -65,20 +66,24 @@ class HomeView(View):
         index,created = Index.objects.get_or_create(user=request.user)
 
         current = index.index if not created else 1
-        values = GetSheetData(settings.DATA_SHEET_ID,request.user).get_data()
-        if index.index >= len(values):
-            context = {'error': 'No more data to be classified'}
+        try:
+            values = GetSheetData(settings.DATA_SHEET_ID,request.user).get_data()
+            if index.index >= len(values):
+                context = {'error': 'No more data to be classified'}
+                return render(request, self.template_name, context)
+            if created or len(values) - 1 > index.total:
+                index.total = len(values) - 1
+                index.save()
+            email = request.user.email
+            users_exists = email in values[0]
+            if users_exists:
+                context = {'current_row':values[current],'index':index}
+            else:
+                context = {'error':'No column with your username'}
+            return render(request, self.template_name,context)
+        except HttpError,e:
+            context = {'error': e._get_reason()}
             return render(request, self.template_name, context)
-        if created or len(values) - 1 > index.total:
-            index.total = len(values) - 1
-            index.save()
-        email = request.user.email
-        users_exists = email in values[0]
-        if users_exists:
-            context = {'current_row':values[current],'index':index}
-        else:
-            context = {'error':'No column with your username'}
-        return render(request, self.template_name,context)
 
 class MatchRecordView(View):
     @method_decorator(login_required(login_url="/"))
