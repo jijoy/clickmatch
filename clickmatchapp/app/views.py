@@ -2,7 +2,6 @@
 import httplib2
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.contrib.auth import logout as auth_logout
@@ -10,13 +9,9 @@ from django.contrib.auth import logout as auth_logout
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
-import os
 
 from googleapiclient import discovery
-from oauth2client import client
-from oauth2client import tools
 from oauth2client.client import AccessTokenCredentials
-from oauth2client.file import Storage
 
 from .models import Index
 
@@ -140,4 +135,4 @@ class LogoutView(View):
     def get(self,request):
         if request.user.is_authenticated():
             auth_logout(request)
-        return HttpResponseRedirect(reverse('tickets'))
+        return HttpResponseRedirect(reverse('index'))
