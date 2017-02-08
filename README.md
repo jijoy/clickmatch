@@ -4,9 +4,13 @@
 2. Create a virtualenv  for Python2.7
 3. Activate the virtual environment.
 4. Install all dependencies - which is in "main" folder
+
     >>pip install -r requirements.txt  
+    
 5. Install DB schema 
+
 	>>python manage.py migrate 
+	
 6. Run server
 	
 	#### In local development env
