@@ -9,12 +9,33 @@ from django.contrib.auth import logout as auth_logout
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
-
+import threading
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from oauth2client.client import AccessTokenCredentials
 
 from .models import Index
+
+class UpdaterThread(threading.Thread):
+    def __init__(self,sheet_id,user,index,value, **kwargs):
+        self.sheet_id = sheet_id
+        self.user = user
+        self.value = value
+        self.index = index
+        super(UpdaterThread, self).__init__(**kwargs)
+
+    def run(self):
+        sheet = GetSheetData(self.sheet_id, self.user)
+        values = sheet.get_data()
+        print 'Index %s'%self.index
+        col_index = values[0].index(self.user.email)
+        print 'Col Index %s'%col_index
+        row = values[int(self.index)]
+        if len(row) < col_index+1:
+            values[int(self.index)].append(self.value)
+        else:
+            values[int(self.index)][col_index] = self.value
+        sheet.set_data(values)
 
 
 class GetSheetData():
@@ -88,17 +109,7 @@ class HomeView(View):
 class MatchRecordView(View):
     @method_decorator(login_required(login_url="/"))
     def post(self,request,index):
-        sheet = GetSheetData(settings.DATA_SHEET_ID,request.user)
-        values = sheet.get_data()
-        print 'Index %s'%index
-        col_index = values[0].index(request.user.email)
-        print 'Col Index %s'%col_index
-        row = values[int(index)]
-        if len(row) < col_index+1:
-            values[int(index)].append(1)
-        else:
-            values[int(index)][col_index] = 1
-        sheet.set_data(values)
+        UpdaterThread(settings.DATA_SHEET_ID,request.user,index,1).run()
         index_obj = Index.objects.filter(user=request.user).first()
         index_obj.index += 1
         index_obj.save()
@@ -108,19 +119,7 @@ class MatchRecordView(View):
 class NoMatchRecordView(View):
     @method_decorator(login_required(login_url="/"))
     def post(self,request,index):
-        print 'Index %s' % index
-        sheet = GetSheetData(settings.DATA_SHEET_ID,request.user)
-        values = sheet.get_data()
-        col_index = values[0].index(request.user.email)
-        print 'Col Index %s' % values[int(index)]
-        print 'Col Index %s'%col_index
-        row = values[int(index)]
-        if len(row) < col_index+1:
-            values[int(index)].append(0)
-        else:
-            values[int(index)][col_index] = 0
-
-        sheet.set_data(values)
+        UpdaterThread(settings.DATA_SHEET_ID, request.user, index, 0).run()
 
 
         index_obj = Index.objects.filter(user=request.user).first()
