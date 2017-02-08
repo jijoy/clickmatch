@@ -1,5 +1,10 @@
 $(document).ready(function() {
       $("body").prepend('<div id="cover" style="z-index: 1001; display: none;"></div>');
+    $('form.match-form').submit(function() {
+        console.log('Caught submit');
+        $("#cover").show();
+        return true;
+    });
 
 
 });
