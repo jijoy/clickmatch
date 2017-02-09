@@ -14,7 +14,8 @@ from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from oauth2client.client import AccessTokenCredentials
 
-from .models import Index
+from .models import Index, DataCache
+
 
 class UpdaterThread(threading.Thread):
     def __init__(self,sheet_id,user,index,value, **kwargs):
@@ -23,6 +24,7 @@ class UpdaterThread(threading.Thread):
         self.value = value
         self.index = index
         super(UpdaterThread, self).__init__(**kwargs)
+        # self.setDaemon(True)
 
     def run(self):
         sheet = GetSheetData(self.sheet_id, self.user)
@@ -43,29 +45,43 @@ class GetSheetData():
     def __init__(self,sheet_id,user):
         self.sheet_id = sheet_id
         self.user = user
+        self.get_service()
+
+    def get_time(self):
+        import time
+        millis = int(round(time.time() * 1000))
+        return millis
 
     def get_service(self):
+        start = self.get_time()
         social = self.user.social_auth.get(provider='google-oauth2')
         acess_token = social.extra_data['access_token']
         credentials = AccessTokenCredentials(acess_token,user_agent='')
         http = credentials.authorize(httplib2.Http())
         discoveryUrl = ('https://sheets.googleapis.com/$discovery/rest?version=v4')
-        service = discovery.build('sheets', 'v4', http=http,discoveryServiceUrl=discoveryUrl)
-        return service
+        self.service = discovery.build('sheets', 'v4', http=http,discoveryServiceUrl=discoveryUrl)
+        print 'Time took to connect %s ms'%(self.get_time() - start)
+        return self.service
+
+
 
     def set_data(self,values):
         body = {
             'values': values
         }
-        result = self.get_service().spreadsheets().values().update(spreadsheetId=self.sheet_id,
+        start = self.get_time()
+        result = self.service.spreadsheets().values().update(spreadsheetId=self.sheet_id,
                                                                    range=settings.SHEET_NAME,
                                                                    valueInputOption="RAW",
                                                                    body=body).execute()
+        print 'Time took to set values %s ms' % (self.get_time() - start)
         print result
 
     def get_data(self):
-        result = self.get_service().spreadsheets().values().get(spreadsheetId=self.sheet_id, range=settings.SHEET_NAME).execute()
+        start = self.get_time()
+        result = self.service.spreadsheets().values().get(spreadsheetId=self.sheet_id, range=settings.SHEET_NAME).execute()
         values = result.get('values', [])
+        print 'Time took to get values %s ms' % (self.get_time() - start)
         return values
 
 
@@ -85,10 +101,23 @@ class HomeView(View):
     @method_decorator(login_required(login_url="/"))
     def get(self,request):
         index,created = Index.objects.get_or_create(user=request.user)
+        try:
+            values = [ca.row.split(',') for ca in DataCache.objects.filter(user=request.user).order_by('index').all()]
+        except DataCache.DoesNotExist:
+            values = []
 
         current = index.index if not created else 1
         try:
-            values = GetSheetData(settings.DATA_SHEET_ID,request.user).get_data()
+            if len(values) == 0:
+                values = GetSheetData(settings.DATA_SHEET_ID, request.user).get_data()
+                counter = 1
+                for row in values:
+                    ca = DataCache()
+                    ca.user = request.user
+                    ca.index = counter
+                    ca.row = ','.join(row)
+                    ca.save()
+                    counter += 1
             if index.index >= len(values):
                 context = {'error': 'No more data to be classified'}
                 return render(request, self.template_name, context)
@@ -97,6 +126,7 @@ class HomeView(View):
                 index.save()
             email = request.user.email
             users_exists = email in values[0]
+            # print 'values[0] %s'%values[0]
             if users_exists:
                 context = {'current_row':values[current],'index':index}
             else:
@@ -109,22 +139,30 @@ class HomeView(View):
 class MatchRecordView(View):
     @method_decorator(login_required(login_url="/"))
     def post(self,request,index):
-        UpdaterThread(settings.DATA_SHEET_ID,request.user,index,1).run()
+        cache = DataCache.objects.filter(user=request.user).filter(index=index).first()
+        cache.match = 1
+        cache.save()
         index_obj = Index.objects.filter(user=request.user).first()
         index_obj.index += 1
         index_obj.save()
+
+        UpdaterThread(settings.DATA_SHEET_ID, request.user, index, 1).start()
 
         return HttpResponseRedirect(reverse('home'))
 
 class NoMatchRecordView(View):
     @method_decorator(login_required(login_url="/"))
     def post(self,request,index):
-        UpdaterThread(settings.DATA_SHEET_ID, request.user, index, 0).run()
+        # UpdaterThread(settings.DATA_SHEET_ID, request.user, index, 0).run()
+        cache = DataCache.objects.filter(user=request.user).filter(index=index).first()
+        cache.match = 0
+        cache.save()
 
 
         index_obj = Index.objects.filter(user=request.user).first()
         index_obj.index += 1
         index_obj.save()
+        UpdaterThread(settings.DATA_SHEET_ID, request.user, index, 0).start()
         return HttpResponseRedirect(reverse('home'))
 
 class LoginFailedView(View):

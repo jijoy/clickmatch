@@ -10,3 +10,10 @@ class Index(models.Model):
     user = models.ForeignKey(User)
     index = models.IntegerField(default=1)
     total = models.IntegerField(default=0)
+
+
+class DataCache(models.Model):
+    user = models.ForeignKey(User)
+    index = models.IntegerField(default=1)
+    row = models.CharField(max_length=25000)
+    match = models.IntegerField(null=True)
