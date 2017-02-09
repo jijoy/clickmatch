@@ -176,6 +176,7 @@ MESSAGE_TAGS = {
 }
 
 
+# these are not real keys.
 
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '960975122970-et5bje1umkpdsct3kd8esd6au4bjfkdp.apps.googleusercontent.com'
 SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = 'bzu50OmRS75PSmmgEQn79sw0'
