@@ -147,7 +147,6 @@ class MatchRecordView(View):
         index_obj.save()
 
         UpdaterThread(settings.DATA_SHEET_ID, request.user, index, 1).start()
-
         return HttpResponseRedirect(reverse('home'))
 
 class NoMatchRecordView(View):
